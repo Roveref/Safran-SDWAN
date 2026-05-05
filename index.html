@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SD-WAN Safran — Executive Briefing</title>
+<link rel="stylesheet" href="style.css?v=v3-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
+
+<!-- ============== HEADER ============== -->
+<header class="app-header">
+  <div class="masthead">
+    <img class="masthead-logo" src="safran-logo.svg" alt="Safran">
+    <div class="masthead-divider"></div>
+    <div class="masthead-title">SD-WAN <em>Transformation</em></div>
+  </div>
+  <div class="masthead-right">
+    <span>BearingPoint × Safran</span>
+    <span class="divider"></span>
+    <span id="hdr-build">—</span>
+    <span class="hdr-source-badge" id="hdr-source-badge" hidden>
+      <span class="hdr-source-dot"></span>
+      <span class="hdr-source-text">Custom upload</span>
+      <button type="button" class="hdr-source-reset" id="hdr-source-reset" title="Revert to shipped snapshot">reset</button>
+    </span>
+  </div>
+</header>
+
+<!-- ============== STATUS BAR ============== -->
+<div class="status-bar" id="status-bar">
+  <div class="status-bar-item">
+    <span class="status-bar-dot" id="sb-dot"></span>
+    <span class="sb-label">Scope</span>
+    <span class="sb-value num-tab" id="sb-scope">—</span>
+    <span class="sb-label">sites</span>
+  </div>
+  <span class="status-bar-sep"></span>
+  <div class="status-bar-item">
+    <span class="sb-label">Migrated</span>
+    <span class="sb-value leaf num-tab" id="sb-migrated">—</span>
+    <span class="sb-label">/</span>
+    <span class="sb-value num-tab" id="sb-pct">—</span>
+  </div>
+  <span class="status-bar-sep"></span>
+  <div class="status-bar-item">
+    <span class="sb-label">At-risk</span>
+    <span class="sb-value alert num-tab" id="sb-risk">—</span>
+  </div>
+  <span class="status-bar-sep"></span>
+  <div class="status-bar-item">
+    <span class="sb-label">Velocity</span>
+    <input type="range" id="sb-velocity-slider" class="sb-slider" min="0" max="20" step="0.5" value="0">
+    <span class="sb-value gold num-tab" id="sb-velocity">—</span>
+    <span class="sb-label">/ wk</span>
+  </div>
+  <span class="status-bar-sep"></span>
+  <div class="status-bar-item">
+    <span class="sb-label">Landing</span>
+    <span class="sb-sub">proj</span>
+    <span class="sb-value num-tab" id="sb-landing">—</span>
+    <span class="sb-label">·</span>
+    <span class="sb-sub">plan</span>
+    <span class="sb-value num-tab" id="sb-landing-plan">—</span>
+  </div>
+</div>
+
+<!-- ============== APP SHELL ============== -->
+<div class="app-shell">
+
+  <!-- =========== SIDEBAR =========== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Filters</div>
+      <div class="sidebar-header-actions">
+        <div class="filter-unit-toggle inline">
+          <label class="unit-opt"><input type="radio" name="display-unit" value="M"><span>M</span></label>
+          <label class="unit-opt"><input type="radio" name="display-unit" value="W" checked><span>W</span></label>
+        </div>
+        <button class="reset-btn" id="reset-filters" title="Clear all filters">↻</button>
+      </div>
+    </div>
+    <div class="sidebar-body">
+
+      <div class="filter-group">
+        <div class="filter-label">Search</div>
+        <input type="text" id="f-search" placeholder="Site, city, contact, comment…">
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Time window</div>
+        <div id="f-window" class="filter-radios"></div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Risk</div>
+        <div id="f-risk" class="filter-checks"></div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Phase</div>
+        <div id="f-phase" class="filter-checks"></div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Company</div>
+        <div id="f-company" class="filter-checks"></div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- =========== MAIN =========== -->
+  <main class="main">
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="exec">
+        <span class="num">I</span> <span class="tab-title">Executive View</span>
+      </button>
+      <button class="tab" data-tab="pm">
+        <span class="num">II</span> <span class="tab-title">Project View</span>
+      </button>
+      <button class="tab" data-tab="gantt">
+        <span class="num">III</span> <span class="tab-title">Timeline</span>
+      </button>
+      <div class="tabs-right">
+        <div class="compare-bar" id="compare-bar">
+          <label class="compare-label">Compare vs</label>
+          <select id="compare-select" class="compare-select">
+            <option value="">— none (current state) —</option>
+          </select>
+          <span class="compare-hint" id="compare-hint"></span>
+        </div>
+        <button class="tabs-action" id="btn-load-data" title="Upload your own PMO xlsx files">
+          <span class="tabs-action-icon">⇡</span><span class="tabs-action-label">Load data</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- =========== EXECUTIVE VIEW =========== -->
+    <section class="tabpane active" id="tab-exec">
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-kicker">Scope</div>
+          <div class="kpi-value num-tab" data-counter id="kpi-total">0</div>
+          <div class="kpi-sub">sites in consolidated backlog</div>
+          <div class="kpi-delta" id="kpi-total-delta"></div>
+        </div>
+        <div class="kpi accent-leaf">
+          <div class="kpi-kicker">Migrated</div>
+          <div class="kpi-value num-tab" data-counter id="kpi-migrated">0</div>
+          <div class="kpi-sub"><span id="kpi-pct">—</span> of backlog</div>
+          <div class="kpi-delta" id="kpi-migrated-delta"></div>
+        </div>
+        <div class="kpi accent-gold">
+          <div class="kpi-kicker">Remaining</div>
+          <div class="kpi-value num-tab" data-counter id="kpi-remaining">0</div>
+          <div class="kpi-sub">yet to cut over</div>
+          <div class="kpi-delta" id="kpi-remaining-delta"></div>
+        </div>
+        <div class="kpi accent-rust">
+          <div class="kpi-kicker">At risk (H+M)</div>
+          <div class="kpi-value num-tab" data-counter id="kpi-high-risk">0</div>
+          <div class="kpi-sub" id="kpi-high-risk-sub">—</div>
+          <div class="kpi-delta" id="kpi-risk-delta"></div>
+        </div>
+      </div>
+
+      <!-- Hero: World map -->
+      <div class="chart-card worldmap-card">
+        <div class="worldmap-head">
+          <div>
+            <div class="chart-title">Global <em>footprint</em></div>
+          </div>
+          <div class="worldmap-legend">
+            <span><span class="wm-legend-dot alert"></span>High risk</span>
+            <span><span class="wm-legend-dot orange"></span>Medium risk</span>
+            <span><span class="wm-legend-dot purple"></span>Postponed</span>
+            <span><span class="wm-legend-dot grey"></span>No risk</span>
+            <span><span class="wm-legend-dot leaf"></span>Migrated</span>
+            <button class="wm-toggle active" id="wm-toggle-links" title="Toggle SD-WAN overlay links">
+              <span class="wm-legend-dot gold"></span>SD-WAN links
+            </button>
+          </div>
+        </div>
+        <div class="worldmap-wrap">
+          <svg class="worldmap-svg" id="worldmap-svg" viewBox="0 0 1000 480" preserveAspectRatio="xMidYMid meet" aria-label="Global site footprint"></svg>
+          <div class="wm-zoom-hud">
+            <span class="wm-zoom-hint">Scroll to zoom · drag to pan</span>
+            <span class="wm-zoom-level" id="wm-zoom-level">100%</span>
+            <button class="wm-reset" id="wm-reset" title="Reset zoom">↺</button>
+          </div>
+        </div>
+        <div class="worldmap-tallies" id="worldmap-tallies"></div>
+      </div>
+
+      <!-- Row: Funnel + Donut -->
+      <div class="chart-row main-side">
+        <div class="chart-card">
+          <div class="chart-title">Phase <em>funnel</em> — build progress by stream</div>
+          <div class="chart-sub">Click ▸ to expand milestone detail</div>
+          <div id="phase-funnel"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Risk <em>distribution</em></div>
+          <div class="chart-sub">Base: sites not yet migrated</div>
+          <div id="risk-donut"></div>
+        </div>
+      </div>
+
+      <!-- Burnup -->
+      <div class="chart-card">
+        <div class="chart-title">Cadence <em>&amp; landing</em></div>
+        <div class="chart-sub">Weekly migrations vs baseline — projected landing at current velocity</div>
+        <div id="cadence-burnup"></div>
+      </div>
+
+      <!-- Company delivery -->
+      <div class="chart-card">
+        <div class="chart-title">Company <em>delivery</em> — risk mix &amp; on-time</div>
+        <div class="chart-sub">Segments: migrated · no risk · postponed · medium · high · — right: on-time delivery vs baseline</div>
+        <div id="company-stacked"></div>
+      </div>
+
+      <!-- Sites list -->
+      <div class="section-title">
+        <div>
+          <span class="kicker">Appendix · I</span>
+          <h2>Site <em>ledger</em></h2>
+        </div>
+        <div class="section-meta"><span id="sites-list-count"></span></div>
+      </div>
+      <div class="chart-card">
+        <div id="sites-list"></div>
+      </div>
+
+    </section>
+
+    <!-- =========== PROJECT VIEW =========== -->
+    <section class="tabpane" id="tab-pm">
+
+      <div class="section-title">
+        <div>
+          <span class="kicker">Section II</span>
+          <h2>Project <em>view</em> — per-site critical path</h2>
+        </div>
+        <div class="section-meta">Select a site to inspect its prerequisites</div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-kicker">Scope</div>
+          <div class="kpi-value num-tab" id="pm-kpi-total">0</div>
+          <div class="kpi-sub">sites in filter</div>
+        </div>
+        <div class="kpi accent-leaf">
+          <div class="kpi-kicker">Migrated</div>
+          <div class="kpi-value num-tab" id="pm-kpi-migrated">0</div>
+          <div class="kpi-sub"><span id="pm-kpi-pct">—</span> of filter</div>
+        </div>
+        <div class="kpi accent-gold">
+          <div class="kpi-kicker">Remaining</div>
+          <div class="kpi-value num-tab" id="pm-kpi-remaining">0</div>
+          <div class="kpi-sub">yet to cut over</div>
+        </div>
+        <div class="kpi accent-rust">
+          <div class="kpi-kicker">At risk</div>
+          <div class="kpi-value num-tab" id="pm-kpi-high-risk">0</div>
+          <div class="kpi-sub" id="pm-kpi-high-risk-sub">—</div>
+        </div>
+      </div>
+
+      <div class="pm-layout">
+        <div class="pm-list">
+          <div class="pm-list-toolbar">
+            <input type="text" id="pm-search" placeholder="Search site…">
+          </div>
+          <table class="pm-table pm-table-header">
+            <thead>
+              <tr>
+                <th class="pm-c-site">Site</th>
+                <th class="pm-c-company">Company</th>
+                <th class="pm-c-tminus">T−</th>
+                <th class="pm-c-phase">Phase</th>
+                <th class="pm-c-status">Status</th>
+              </tr>
+            </thead>
+          </table>
+          <div class="pm-list-body" id="pm-list-body"></div>
+        </div>
+        <div class="pm-detail" id="pm-detail">
+          <div class="empty-state">← Select a site to reveal its path</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========== TIMELINE =========== -->
+    <section class="tabpane" id="tab-gantt">
+
+      <div class="section-title">
+        <div>
+          <span class="kicker">Section III</span>
+          <h2>Timeline <em>— Gantt</em></h2>
+        </div>
+        <div class="section-meta gantt-controls">
+          <span class="ctrl-group">
+            <span>Group</span>
+            <button class="zbtn" data-group="zone">Zone</button>
+            <button class="zbtn" data-group="batch">Batch</button>
+            <button class="zbtn" data-group="country">Country</button>
+            <button class="zbtn" data-group="company">Company</button>
+            <button class="zbtn active" data-group="none">Flat</button>
+          </span>
+          <span class="ctrl-group">
+            <span>Zoom</span>
+            <button class="zbtn" data-zoom="2">XS</button>
+            <button class="zbtn" data-zoom="3">S</button>
+            <button class="zbtn active" data-zoom="5">M</button>
+            <button class="zbtn" data-zoom="8">L</button>
+            <button class="zbtn" data-zoom="12">XL</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-kicker">Sites</div>
+          <div class="kpi-value num-tab" id="gantt-count">0</div>
+          <div class="kpi-sub">in filter</div>
+        </div>
+        <div class="kpi accent-overdue">
+          <div class="kpi-kicker">Overdue sites</div>
+          <div class="kpi-value num-tab" id="gantt-overdue">0</div>
+          <div class="kpi-sub">one or more milestones missed</div>
+        </div>
+        <div class="kpi accent-gold">
+          <div class="kpi-kicker">Milestones late</div>
+          <div class="kpi-value num-tab" id="gantt-overdue-total">0</div>
+          <div class="kpi-sub">total across filter</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-kicker">Peak load</div>
+          <div class="kpi-value num-tab" id="gantt-peak">0</div>
+          <div class="kpi-sub" id="gantt-peak-sub">next 12 weeks</div>
+        </div>
+      </div>
+
+      <div class="gantt-legend">
+        <span><span class="phase-swatch phase-prep"></span>Prep</span>
+        <span><span class="phase-swatch phase-config"></span>Config</span>
+        <span><span class="phase-swatch phase-install"></span>Install</span>
+        <span><span class="marker-swatch"></span>Cutover</span>
+        <span><span class="phase-swatch phase-hyper"></span>Hypercare</span>
+        <span><span class="phase-swatch phase-decom"></span>Decom</span>
+        <span><span class="stream-dot done"></span>Milestone OK</span>
+        <span><span class="stream-dot partial"></span>In progress</span>
+        <span><span class="stream-dot overdue"></span>Overdue</span>
+        <span><span class="stream-dot pending"></span>Pending</span>
+        <span><span class="today-swatch"></span>Today</span>
+      </div>
+
+      <div class="gantt-wrap">
+        <div class="gantt-inner" id="gantt-inner"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============== UPLOAD MODAL ============== -->
+<div class="upload-modal" id="upload-modal" hidden>
+  <div class="upload-backdrop" data-upload-close></div>
+  <div class="upload-card" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+    <button type="button" class="upload-close" id="upload-close" aria-label="Close">×</button>
+    <div class="upload-head">
+      <span class="upload-kicker">Source data</span>
+      <h3 id="upload-title">Load <em>your own</em> PMO files</h3>
+      <p class="upload-intro">
+        Drop the latest weekly extracts. The full Python pipeline runs locally in your
+        browser — files never leave your machine. First load fetches the runtime (~12 MB);
+        subsequent runs are instant.
+      </p>
+    </div>
+
+    <div class="upload-dropzone" id="upload-dropzone" tabindex="0" role="button" aria-label="Drop xlsx files here or click to browse">
+      <div class="upload-dropzone-icon">⇡</div>
+      <div class="upload-dropzone-title">Drop your PMO xlsx files here</div>
+      <div class="upload-dropzone-sub">or click to browse · multi-select supported · routed by filename</div>
+      <input type="file" id="upload-multi" accept=".xlsx" multiple hidden>
+    </div>
+
+    <div class="upload-status" id="upload-status">
+      <div class="upload-status-row" data-key="intern">
+        <span class="upload-status-icon" aria-hidden="true">○</span>
+        <span class="upload-status-label">SDWAN_Timeline_Intern <em class="req">required</em></span>
+        <span class="upload-status-filename" data-filename-for="intern"></span>
+      </div>
+      <div class="upload-status-row" data-key="sprint">
+        <span class="upload-status-icon" aria-hidden="true">○</span>
+        <span class="upload-status-label">Sprint SD-WAN Week — RAMPUP <em class="req">required</em></span>
+        <span class="upload-status-filename" data-filename-for="sprint"></span>
+      </div>
+      <div class="upload-status-row" data-key="orange_sdwan">
+        <span class="upload-status-icon" aria-hidden="true">○</span>
+        <span class="upload-status-label">Onglet suivi SDWAN Orange <em class="opt">optional</em></span>
+        <span class="upload-status-filename" data-filename-for="orange_sdwan"></span>
+      </div>
+      <div class="upload-status-row" data-key="orange_underlay">
+        <span class="upload-status-icon" aria-hidden="true">○</span>
+        <span class="upload-status-label">Onglet suivi underlay Orange <em class="opt">optional</em></span>
+        <span class="upload-status-filename" data-filename-for="orange_underlay"></span>
+      </div>
+      <div class="upload-status-warn" id="upload-status-warn" hidden></div>
+    </div>
+
+    <div class="upload-progress" id="upload-progress" hidden>
+      <div class="upload-progress-head">
+        <span class="upload-progress-label" id="upload-progress-label">Loading…</span>
+        <span class="upload-progress-pct" id="upload-progress-pct"></span>
+      </div>
+      <div class="upload-progress-bar">
+        <div class="upload-progress-fill" id="upload-progress-fill"></div>
+      </div>
+      <pre class="upload-progress-log" id="upload-progress-log"></pre>
+    </div>
+
+    <div class="upload-actions">
+      <span class="upload-foot-note" id="upload-foot-note">Files stay in your browser session.</span>
+      <button type="button" class="btn-footer" id="upload-cancel" data-upload-close>Cancel</button>
+      <button type="button" class="btn-footer primary" id="upload-run" disabled>Build dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="chart-tooltip" id="chart-tooltip"></div>
+
+<script src="data.js?v=v3-1"></script>
+<script>
+  // If the user uploaded their own dataset (via the ⇡ Load data… button),
+  // override the shipped snapshot. Falls back silently if anything goes wrong.
+  try {
+    const _raw = sessionStorage.getItem("SDWAN_DATA_UPLOADED");
+    if (_raw) {
+      window.SDWAN_DATA = JSON.parse(_raw);
+      window.SDWAN_DATA_SOURCE = "upload";
+    }
+  } catch (e) {
+    console.warn("[upload] sessionStorage payload could not be parsed; using shipped data.", e);
+    sessionStorage.removeItem("SDWAN_DATA_UPLOADED");
+  }
+</script>
+<script src="app.js?v=v3-6"></script>
+<script src="upload-loader.js?v=v3-2"></script>
+</body>
+</html>

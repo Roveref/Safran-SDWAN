@@ -1,0 +1,23 @@
+# Source xlsx files (PMO data — never commit)
+*.xlsx
+~$*.xlsx
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Vercel
+.vercel/
+
+# Local snapshot regeneration outputs (regenerate on demand)
+sdwan_dashboard_input.xlsx
+
+# Temp files
+*.log
+*.tmp
