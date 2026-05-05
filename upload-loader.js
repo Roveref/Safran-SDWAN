@@ -10,6 +10,7 @@
   const PYODIDE_VERSION = "0.26.4";
   const PYODIDE_INDEX   = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
   const STORAGE_KEY     = "SDWAN_DATA_UPLOADED";
+  const EXCLUSIONS_KEY  = "SDWAN_EXCLUSIONS";
 
   // Files we mount into Pyodide MEMFS. Each entry: [memfsPath, fetchUrl].
   // The MEMFS layout mirrors the original Planning/ tree so the Python
@@ -149,7 +150,7 @@
     const badge = $("#hdr-source-badge");
     if (!badge) return;
     const isUpload = window.SDWAN_DATA_SOURCE === "upload"
-                  || !!sessionStorage.getItem(STORAGE_KEY);
+                  || !!localStorage.getItem(STORAGE_KEY);
     badge.hidden = !isUpload;
   }
 
@@ -159,9 +160,28 @@
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(EXCLUSIONS_KEY);
       // Forget the staged files too — user is reverting to the shipped state.
       idbClear().catch(() => {}).finally(() => window.location.reload());
+    });
+  }
+
+  // ================================================================
+  // Persist + restore the "Site IDs to exclude" textarea
+  // ================================================================
+  function bindExclusionsPersistence() {
+    const ta = $("#upload-exclusions");
+    if (!ta) return;
+    try {
+      const saved = localStorage.getItem(EXCLUSIONS_KEY);
+      if (saved !== null) ta.value = saved;
+    } catch (e) { /* ignore */ }
+    ta.addEventListener("input", () => {
+      try {
+        if (ta.value) localStorage.setItem(EXCLUSIONS_KEY, ta.value);
+        else          localStorage.removeItem(EXCLUSIONS_KEY);
+      } catch (e) { /* quota / private mode — ignore */ }
     });
   }
 
@@ -578,12 +598,10 @@ RESULT
       setProgressFill(95);
 
       try {
-        sessionStorage.setItem(STORAGE_KEY, payloadJson);
+        localStorage.setItem(STORAGE_KEY, payloadJson);
       } catch (e) {
-        // Quota exceeded fallback: try localStorage… realistically the payload
-        // is ~1MB so we shouldn't hit this, but be defensive.
-        appendLog("⚠ sessionStorage write failed: " + e.message);
-        throw new Error("Could not persist the result (storage full).");
+        appendLog("⚠ localStorage write failed: " + e.message);
+        throw new Error("Could not persist the result (storage full or unavailable).");
       }
 
       setProgressFill(100);
@@ -613,6 +631,7 @@ RESULT
     bindModalChrome();
     bindFilePickers();
     bindRunButton();
+    bindExclusionsPersistence();
     updateRunButton();
   }
 
