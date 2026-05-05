@@ -369,7 +369,19 @@ await micropip.install("openpyxl")
   // ================================================================
   // Pipeline
   // ================================================================
-  const PIPELINE_PY = `
+  // Read the "Site IDs to exclude" textarea (one per line, comments allowed).
+  function getRuntimeExclusions() {
+    const ta = $("#upload-exclusions");
+    if (!ta || !ta.value) return [];
+    return ta.value
+      .split("\n")
+      .map(s => s.trim())
+      .filter(s => s && !s.startsWith("#"));
+  }
+
+  function buildPipelinePy(runtimeExclusions) {
+    const exclusionsJson = JSON.stringify(runtimeExclusions || []);
+    return `
 import os, sys, importlib.util, traceback
 
 ROOT = "/work/Planning"
@@ -389,6 +401,11 @@ def _import(name, path):
 # 1) Consolidate raw → sdwan_dashboard_input.xlsx
 print("▶ build_input.py")
 build_input = _import("build_input", f"{ROOT}/mockup/build_input.py")
+RUNTIME_EXCLUSIONS = ${exclusionsJson}
+if RUNTIME_EXCLUSIONS:
+    base = set(getattr(build_input, "SITE_ID_EXCLUDE", set()))
+    build_input.SITE_ID_EXCLUDE = base | set(RUNTIME_EXCLUSIONS)
+    print(f"  applying {len(RUNTIME_EXCLUSIONS)} runtime exclusion(s): {RUNTIME_EXCLUSIONS}")
 sys.argv = ["build_input.py"]
 build_input.main()
 
@@ -413,11 +430,13 @@ RESULT = raw[len(PREFIX):].rstrip().rstrip(";")
 print("✓ pipeline complete")
 RESULT
 `;
+  }
 
   async function runPipeline(py) {
     setProgressLabel("Running pipeline…");
     setProgressFill(75);
-    const result = await py.runPythonAsync(PIPELINE_PY);
+    const exclusions = getRuntimeExclusions();
+    const result = await py.runPythonAsync(buildPipelinePy(exclusions));
     if (typeof result !== "string") {
       throw new Error("Pipeline returned non-string payload");
     }

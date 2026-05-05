@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SD-WAN Safran — Executive Briefing</title>
-<link rel="stylesheet" href="style.css?v=v3-8">
+<link rel="stylesheet" href="style.css?v=v3-pub-2">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
 <body>
@@ -416,6 +416,14 @@
       <div class="upload-status-warn" id="upload-status-warn" hidden></div>
     </div>
 
+    <details class="upload-advanced">
+      <summary>Advanced options</summary>
+      <label class="upload-adv-label" for="upload-exclusions">Site IDs to exclude</label>
+      <textarea id="upload-exclusions" class="upload-adv-textarea" rows="3" spellcheck="false"
+        placeholder="One site_id per line — these will be dropped from the canonical scope.&#10;e.g.&#10;FR123-1-XXX-CITY"></textarea>
+      <span class="upload-adv-hint">Stays in this tab only · never sent anywhere · cleared when you close the modal.</span>
+    </details>
+
     <div class="upload-progress" id="upload-progress" hidden>
       <div class="upload-progress-head">
         <span class="upload-progress-label" id="upload-progress-label">Loading…</span>
@@ -454,6 +462,6 @@
   }
 </script>
 <script src="app.js?v=v3-6"></script>
-<script src="upload-loader.js?v=v3-2"></script>
+<script src="upload-loader.js?v=v3-pub-2"></script>
 </body>
 </html>

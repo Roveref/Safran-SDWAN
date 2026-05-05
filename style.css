@@ -3123,3 +3123,78 @@ body.upload-modal-open { overflow: hidden; }
   .upload-actions { flex-wrap: wrap; }
   .upload-foot-note { width: 100%; }
 }
+
+/* Advanced options inside the upload modal (collapsed by default) */
+.upload-advanced {
+  margin-bottom: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: rgba(255,255,255,0.02);
+}
+.upload-advanced > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-300);
+  transition: color .15s, background .15s;
+  user-select: none;
+}
+.upload-advanced > summary::-webkit-details-marker { display: none; }
+.upload-advanced > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 14px;
+  font-size: 9px;
+  color: var(--gold-500);
+  transition: transform .15s;
+}
+.upload-advanced[open] > summary::before { transform: rotate(90deg); }
+.upload-advanced > summary:hover { color: var(--gold-300); background: rgba(201,164,73,0.04); }
+.upload-advanced[open] > summary {
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--paper-light);
+}
+.upload-adv-label {
+  display: block;
+  margin: 12px 14px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-200);
+}
+.upload-adv-textarea {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  color: var(--paper-light);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 60px;
+  transition: border-color .15s, background .15s;
+}
+.upload-adv-textarea:focus {
+  outline: none;
+  border-color: var(--gold-500);
+  background: rgba(0,0,0,0.5);
+}
+.upload-adv-textarea::placeholder { color: var(--ink-400); }
+.upload-adv-hint {
+  display: block;
+  margin: 8px 14px 14px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
