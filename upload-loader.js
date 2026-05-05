@@ -50,6 +50,99 @@
   };
 
   // ================================================================
+  // IndexedDB persistence — keep uploaded files across reloads
+  // so the user can re-open the modal and only swap one file
+  // ================================================================
+  const IDB_NAME    = "sdwan-uploads";
+  const IDB_STORE   = "files";
+  const IDB_VERSION = 1;
+
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") return reject(new Error("IndexedDB unavailable"));
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => reject(req.error);
+    });
+  }
+  async function idbGetAll() {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror   = () => reject(req.error);
+    });
+  }
+  async function idbPut(rec) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(rec);
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
+    });
+  }
+  async function idbDelete(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
+    });
+  }
+  async function idbClear() {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
+    });
+  }
+
+  async function hydrateFilesFromIDB() {
+    try {
+      const records = await idbGetAll();
+      let hydrated = 0;
+      for (const r of records) {
+        if (!Object.prototype.hasOwnProperty.call(state.files, r.key)) continue;
+        if (state.files[r.key]) continue;     // don't override what user just dropped
+        state.files[r.key] = new File([r.blob], r.name, { type: r.type || "" });
+        hydrated++;
+      }
+      if (hydrated > 0) {
+        refreshStatusRows();
+        updateRunButton();
+      }
+    } catch (e) {
+      console.warn("[upload-loader] IDB hydrate failed:", e);
+    }
+  }
+
+  function persistFile(key, file) {
+    idbPut({ key, name: file.name, size: file.size, type: file.type || "", blob: file })
+      .catch(e => console.warn("[upload-loader] IDB put failed:", e));
+  }
+  function forgetFile(key) {
+    idbDelete(key).catch(e => console.warn("[upload-loader] IDB delete failed:", e));
+  }
+  function clearFile(key) {
+    state.files[key] = null;
+    forgetFile(key);
+    refreshStatusRows();
+    refreshWarnings([]);
+    updateRunButton();
+  }
+
+  // ================================================================
   // Source badge — "Custom upload" pill in masthead
   // ================================================================
   function refreshSourceBadge() {
@@ -67,7 +160,8 @@
       e.preventDefault();
       e.stopPropagation();
       sessionStorage.removeItem(STORAGE_KEY);
-      window.location.reload();
+      // Forget the staged files too — user is reverting to the shipped state.
+      idbClear().catch(() => {}).finally(() => window.location.reload());
     });
   }
 
@@ -86,6 +180,9 @@
     document.body.classList.add("upload-modal-open");
     const dz = $("#upload-dropzone");
     if (dz) dz.focus();
+    // Re-hydrate from IDB so the previously-uploaded files reappear; the
+    // user only needs to drop the one they want to swap.
+    hydrateFilesFromIDB();
   }
 
   function closeModal() {
@@ -132,6 +229,7 @@
       const key = classifyFile(f);
       if (key) {
         state.files[key] = f;
+        persistFile(key, f);     // IDB-backed so it survives reload
         accepted.push({ key, f });
       } else {
         rejected.push(f);
@@ -148,14 +246,29 @@
       const f   = state.files[key];
       const ico = row.querySelector(".upload-status-icon");
       const lbl = row.querySelector(`[data-filename-for="${key}"]`);
+      let clearBtn = row.querySelector(".upload-clear-btn");
       if (f) {
         row.classList.add("ok");
         if (ico) ico.textContent = "✓";
         if (lbl) lbl.textContent = `${f.name} · ${humanSize(f.size)}`;
+        if (!clearBtn) {
+          clearBtn = document.createElement("button");
+          clearBtn.type = "button";
+          clearBtn.className = "upload-clear-btn";
+          clearBtn.title = "Remove this file";
+          clearBtn.setAttribute("aria-label", "Remove " + key);
+          clearBtn.textContent = "✕";
+          clearBtn.addEventListener("click", (e) => {
+            e.preventDefault(); e.stopPropagation();
+            clearFile(key);
+          });
+          row.appendChild(clearBtn);
+        }
       } else {
         row.classList.remove("ok");
         if (ico) ico.textContent = "○";
         if (lbl) lbl.textContent = "";
+        if (clearBtn) clearBtn.remove();
       }
     });
   }

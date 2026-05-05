@@ -3198,3 +3198,31 @@ body.upload-modal-open { overflow: hidden; }
   text-transform: uppercase;
   color: var(--ink-400);
 }
+
+/* Per-row clear button (appears when a file is staged) */
+.upload-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-300);
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.upload-clear-btn:hover {
+  color: var(--alert-soft, #ff8a80);
+  border-color: var(--alert, #D64545);
+  background: rgba(213,69,69,0.08);
+}
+/* Adjust grid so the clear button sits cleanly on the right of each row */
+.upload-status-row.ok {
+  grid-template-columns: 22px 1fr auto auto;
+}
