@@ -283,10 +283,14 @@ def load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log):
         company = str(company_raw).strip() if company_raw else None
         if ck in by_canon:
             existing = by_canon[ck]
-            # Same canonical ID already added from a previous sheet — just
-            # track the additional source.
+            # Same canonical ID already added from a previous sheet — track
+            # the additional source and backfill migration_date if missing.
             if source_label not in sites[existing]["source_sheets"]:
                 sites[existing]["source_sheets"].append(source_label)
+            if sites[existing].get("migration_date") in (None, "") and mig is not None:
+                iso = to_iso(mig)
+                if iso:
+                    sites[existing]["migration_date"] = iso
             dupes_log.append((site, existing, row_idx))
             return
         sites[site] = _base_record(site, company, mig)
@@ -308,11 +312,14 @@ def load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log):
     # ------ Pass 2: PILOTS ------
     # Header row 11; data from row 12. Cols: 1=Site ID, 2=Site, 3=Company,
     # 4=Address, 5=IT Contact, 7=Topology, 8=Underlay ASIS, 9=Underlay Target,
-    # 11=Status (e.g. "Migrated", "Ready").
+    # 11=Status, 41=AO "WAN - Migration Date" (fallback when BATCH col 47 is empty).
     ws_p = wb_i["PILOTS"]
     for i in range(12, ws_p.max_row + 1):
         raw = ws_p.cell(row=i, column=1).value
         company = ws_p.cell(row=i, column=3).value
+        mig_pilot = ws_p.cell(row=i, column=41).value
+        if not isinstance(mig_pilot, (datetime, date)):
+            mig_pilot = None
         extras = {
             "address":      ws_p.cell(row=i, column=4).value,
             "it_contact":   ws_p.cell(row=i, column=5).value,
@@ -325,7 +332,7 @@ def load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log):
         for k in ("address", "it_contact", "topology", "underlay_asis", "underlay_target", "status_raw"):
             if extras.get(k) is not None:
                 extras[k] = str(extras[k]).strip() or None
-        try_add(raw, company, None, "PILOTS", i, extras=extras)
+        try_add(raw, company, mig_pilot, "PILOTS", i, extras=extras)
 
     return sites, by_canon
 
