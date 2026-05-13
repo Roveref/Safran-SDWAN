@@ -1997,7 +1997,8 @@ function renderBurnup(sites) {
         .map(s => `<div class="tt-row"><span class="tt-k" style="color:${s.color}">${s.label}</span><span class="tt-v">${b[s.key]}</span></div>`)
         .join("");
       const projRow = projected[i] != null
-        ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>`
+        ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>
+           <div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Velocity <em style="opacity:.6;font-style:normal">(8w avg)</em></span><span class="tt-v">${velocityPerWeek}/wk</span></div>`
         : "";
       const bodyRows = rows || `<div class="tt-row" style="color:var(--ink-300);font-style:italic">No migrations this bucket</div>`;
       showTooltip(`
@@ -2035,7 +2036,8 @@ function renderBurnup(sites) {
           .map(s => `<div class="tt-row"><span class="tt-k" style="color:${s.color}">${s.label}</span><span class="tt-v">${b[s.key]}</span></div>`)
           .join("");
         const projRow = projected[i] != null
-          ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>`
+          ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>
+             <div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Velocity <em style="opacity:.6;font-style:normal">(8w avg)</em></span><span class="tt-v">${velocityPerWeek}/wk</span></div>`
           : "";
         showTooltip(`
           <div class="tt-title"><em>${fmtBucket(k)}</em></div>
