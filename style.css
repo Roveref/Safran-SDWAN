@@ -2895,6 +2895,20 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .hdr-source-reset:hover { color: var(--gold-300); }
 
+/* Cleared / zero state — visually distinct from "Custom upload" */
+.hdr-source-badge.cleared {
+  border-color: var(--ink-300);
+  background: rgba(255,255,255,0.04);
+  color: var(--ink-100);
+}
+.hdr-source-badge.cleared .hdr-source-dot {
+  background: var(--ink-200);
+  box-shadow: none;
+}
+.hdr-source-badge.cleared .hdr-source-reset {
+  border-left-color: var(--hairline);
+}
+
 /* Modal scaffold */
 .upload-modal {
   position: fixed; inset: 0;

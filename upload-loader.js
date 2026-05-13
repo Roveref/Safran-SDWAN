@@ -11,6 +11,7 @@
   const PYODIDE_INDEX   = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
   const STORAGE_KEY     = "SDWAN_DATA_UPLOADED";
   const EXCLUSIONS_KEY  = "SDWAN_EXCLUSIONS";
+  const CLEARED_KEY     = "SDWAN_DATA_CLEARED";
 
   // Files we mount into Pyodide MEMFS. Each entry: [memfsPath, fetchUrl].
   // The MEMFS layout mirrors the original Planning/ tree so the Python
@@ -149,9 +150,25 @@
   function refreshSourceBadge() {
     const badge = $("#hdr-source-badge");
     if (!badge) return;
-    const isUpload = window.SDWAN_DATA_SOURCE === "upload"
-                  || !!localStorage.getItem(STORAGE_KEY);
-    badge.hidden = !isUpload;
+    const txt = badge.querySelector(".hdr-source-text");
+    const btn = badge.querySelector(".hdr-source-reset");
+    const isUpload  = window.SDWAN_DATA_SOURCE === "upload"
+                    || !!localStorage.getItem(STORAGE_KEY);
+    const isCleared = window.SDWAN_DATA_SOURCE === "cleared"
+                    || localStorage.getItem(CLEARED_KEY) === "1";
+    if (isCleared) {
+      badge.hidden = false;
+      badge.classList.add("cleared");
+      if (txt) txt.textContent = "Cleared";
+      if (btn) btn.textContent = "restore";
+      if (btn) btn.title = "Restore the shipped demo snapshot";
+    } else {
+      badge.classList.remove("cleared");
+      badge.hidden = !isUpload;
+      if (txt) txt.textContent = "Custom upload";
+      if (btn) btn.textContent = "reset";
+      if (btn) btn.title = "Revert to shipped snapshot";
+    }
   }
 
   function bindSourceBadgeReset() {
@@ -160,9 +177,18 @@
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const isCleared = localStorage.getItem(CLEARED_KEY) === "1";
+      if (isCleared) {
+        // Restore the shipped demo: clear the cleared flag and reload.
+        localStorage.removeItem(CLEARED_KEY);
+        window.location.reload();
+        return;
+      }
+      // Reset to a clean zero state: wipe uploads + exclusions, set the
+      // cleared flag so the dashboard renders with zero scope on reload.
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(EXCLUSIONS_KEY);
-      // Forget the staged files too — user is reverting to the shipped state.
+      localStorage.setItem(CLEARED_KEY, "1");
       idbClear().catch(() => {}).finally(() => window.location.reload());
     });
   }
@@ -602,6 +628,8 @@ RESULT
 
       try {
         localStorage.setItem(STORAGE_KEY, payloadJson);
+        // Upload supersedes any previous "cleared" state.
+        localStorage.removeItem(CLEARED_KEY);
       } catch (e) {
         appendLog("⚠ localStorage write failed: " + e.message);
         throw new Error("Could not persist the result (storage full or unavailable).");
