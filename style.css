@@ -1574,6 +1574,28 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: var(--paper);
   font-variant-numeric: tabular-nums;
 }
+
+.chart-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.cad-bar-baseline {
+  fill: none;
+  stroke: var(--gold-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.55;
+}
+.cad-line.baseline-initial {
+  stroke: var(--gold-soft);
+  stroke-dasharray: 5 3;
+  opacity: 0.75;
+  stroke-width: 1.5;
+}
 .cad-axis-label {
   font-family: var(--font-mono);
   font-size: 10px;

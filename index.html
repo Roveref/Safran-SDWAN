@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SD-WAN Safran — Executive Briefing</title>
-<link rel="stylesheet" href="style.css?v=v3-13">
+<link rel="stylesheet" href="style.css?v=v3-14">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
 <body>
@@ -213,8 +213,13 @@
 
       <!-- Burnup -->
       <div class="chart-card">
-        <div class="chart-title">Cadence <em>&amp; landing</em></div>
-        <div class="chart-sub">Weekly migrations vs baseline — projected landing at current velocity</div>
+        <div class="chart-title-row">
+          <div>
+            <div class="chart-title">Cadence <em>&amp; landing</em></div>
+            <div class="chart-sub">Weekly migrations vs baseline — projected landing at current velocity</div>
+          </div>
+          <button type="button" class="wm-toggle active" id="cad-toggle-baseline" title="Show / hide initial baseline (Mise en forme · Semaine Baseline)">Baseline</button>
+        </div>
         <div id="cadence-burnup"></div>
       </div>
 
@@ -472,7 +477,7 @@
     localStorage.removeItem("SDWAN_DATA_UPLOADED");
   }
 </script>
-<script src="app.js?v=v3-11"></script>
+<script src="app.js?v=v3-12"></script>
 <script src="upload-loader.js?v=v3-5"></script>
 </body>
 </html>

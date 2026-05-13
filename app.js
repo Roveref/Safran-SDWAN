@@ -167,6 +167,14 @@ function fmtAddedDate(s) {
 }
 
 // "23 Apr 2026 · W17" — full date plus ISO week, for site ledger
+function fmtDeltaDays(n) {
+  if (n === null || n === undefined) return `<span style="color:var(--ink-400)">—</span>`;
+  if (n === 0) return `<span style="color:var(--ink-200)">0d</span>`;
+  const late = n > 0;
+  const color = late ? "#D64545" : "#56B181";
+  const sign = late ? "+" : "−";
+  return `<span style="color:${color};font-variant-numeric:tabular-nums">${sign}${Math.abs(n)}d</span>`;
+}
 function fmtDateCutover(iso) {
   if (!iso) return `<span style="color:var(--ink-400)">—</span>`;
   const d = new Date(iso);
@@ -301,6 +309,7 @@ const filters = {
   dateFrom: "",
   dateTo: "",
   displayUnit: "W",
+  showBaseline: true,
   risk: new Set(),
   phase: new Set(),
   company: new Set(),
@@ -647,6 +656,15 @@ function initFilters() {
     renderAll();
   });
   $$('input[name="display-unit"]').forEach(r => r.addEventListener("change", e => { filters.displayUnit = e.target.value; renderAll(); }));
+
+  const baselineToggle = $("#cad-toggle-baseline");
+  if (baselineToggle) {
+    baselineToggle.addEventListener("click", () => {
+      filters.showBaseline = !filters.showBaseline;
+      baselineToggle.classList.toggle("active", filters.showBaseline);
+      renderAll();
+    });
+  }
 
   $("#reset-filters").addEventListener("click", () => {
     filters.search = ""; filters.window = "all"; filters.dateFrom = ""; filters.dateTo = "";
@@ -1796,6 +1814,22 @@ function renderBurnup(sites) {
   const undated = EMPTY();
   undatedSites.forEach(s => { undated[siteCat(s)] += 1; });
   const undatedTotal = undated.migrated + undated.noRisk + undated.postponed + undated.medRisk + undated.highRisk;
+
+  // Baseline aggregation — initial planned migration dates (Mise en forme
+  // sheet, columns M+N). Only sites included in the regular byBucket are
+  // counted (i.e. non-closed, non-undated, non-W44-placeholder).
+  const baselineByBucket = {};
+  let baselineMin = null, baselineMax = null;
+  sites.forEach(s => {
+    if ((s.status_detail || s.status) === "closed") return;
+    const bd = s.migration_date_baseline;
+    if (!bd) return;
+    const k = bucketKey(bd);
+    if (!k) return;
+    baselineByBucket[k] = (baselineByBucket[k] || 0) + 1;
+    if (baselineMin === null || k < baselineMin) baselineMin = k;
+    if (baselineMax === null || k > baselineMax) baselineMax = k;
+  });
   // Derived simple counts for line computations
   const migratedByBucket = {}, plannedByBucket = {};
   Object.entries(byBucket).forEach(([k, v]) => {
@@ -1827,7 +1861,18 @@ function renderBurnup(sites) {
     }
     return out;
   }
-  const buckets = bucketRange(minBucket, maxBucket);
+  // If the baseline is shown, extend the bucket range to include any
+  // baseline dates that fall outside the actual-cadence range.
+  let rangeMin = minBucket, rangeMax = maxBucket;
+  if (filters.showBaseline) {
+    if (baselineMin !== null && (rangeMin === null || baselineMin < rangeMin)) rangeMin = baselineMin;
+    if (baselineMax !== null && (rangeMax === null || baselineMax > rangeMax)) rangeMax = baselineMax;
+  }
+  const buckets = bucketRange(rangeMin, rangeMax);
+  // Cumulative baseline aligned with buckets
+  let cumB = 0;
+  const cumBaseline = buckets.map(k => cumB += (baselineByBucket[k] || 0));
+  const totalBaseline = cumBaseline.length ? cumBaseline[cumBaseline.length - 1] : 0;
   // Undated + placeholder sites are handled by the "À planifier" side panel,
   // not as buckets — so the timeline shows real cadence only.
   if (!buckets.length && !toPlanSites.length) {
@@ -1936,11 +1981,13 @@ function renderBurnup(sites) {
   const maxBar = Math.max(
     ...buckets.map(k => {
       const b = byBucket[k] || EMPTY();
-      return b.migrated + b.noRisk + b.postponed + b.medRisk + b.highRisk;
+      const actual = b.migrated + b.noRisk + b.postponed + b.medRisk + b.highRisk;
+      const base = filters.showBaseline ? (baselineByBucket[k] || 0) : 0;
+      return Math.max(actual, base);
     }),
     1
   );
-  const maxCum = Math.max(...cumPlanned, totalScope, 1);
+  const maxCum = Math.max(...cumPlanned, totalScope, filters.showBaseline ? totalBaseline : 0, 1);
 
   const x = i => margin.left + i * (barW + 4);
   const yBar = v => margin.top + plotH - (v / maxBar) * plotH;
@@ -1979,6 +2026,24 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
+  // Baseline outline bars — initial planned cadence, rendered as a hollow
+  // dashed rect behind the actual bars. Visible only when the toggle is on.
+  if (filters.showBaseline) {
+    buckets.forEach((k, i) => {
+      const v = baselineByBucket[k] || 0;
+      if (!v) return;
+      const y0 = yBar(v);
+      const y1 = yBar(0);
+      const r = document.createElementNS(svgNS, "rect");
+      r.setAttribute("x", x(i));
+      r.setAttribute("y", y0);
+      r.setAttribute("width", barW);
+      r.setAttribute("height", y1 - y0);
+      r.setAttribute("class", "cad-bar-baseline");
+      svg.appendChild(r);
+    });
+  }
+
   // Hover hit zones — one transparent column per bucket, drawn BEFORE the
   // bars so bars stay on top for segment-specific tooltips. The hit zone
   // catches hovers above the bar (on the cumulative lines, projection,
@@ -2000,12 +2065,17 @@ function renderBurnup(sites) {
         ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>
            <div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Velocity <em style="opacity:.6;font-style:normal">(8w avg)</em></span><span class="tt-v">${velocityPerWeek}/wk</span></div>`
         : "";
+      const baseRow = filters.showBaseline && (baselineByBucket[k] || cumBaseline[i])
+        ? `<div class="tt-row"><span class="tt-k" style="color:${C.goldSoft}">Baseline</span><span class="tt-v">${baselineByBucket[k] || 0}</span></div>
+           <div class="tt-row"><span class="tt-k" style="color:${C.goldSoft}">Cumul. baseline</span><span class="tt-v">${cumBaseline[i]}</span></div>`
+        : "";
       const bodyRows = rows || `<div class="tt-row" style="color:var(--ink-300);font-style:italic">No migrations this bucket</div>`;
       showTooltip(`
         <div class="tt-title"><em>${fmtBucket(k)}</em></div>
         ${bodyRows}
         <div class="tt-row" style="border-top:1px dashed var(--hairline);margin-top:6px;padding-top:4px"><span class="tt-k">Cumul. migrated</span><span class="tt-v">${cumMigrated[i]}</span></div>
         <div class="tt-row"><span class="tt-k">Cumul. plan</span><span class="tt-v">${cumPlanned[i]}</span></div>
+        ${baseRow}
         ${projRow}
       `, evt);
     });
@@ -2039,11 +2109,16 @@ function renderBurnup(sites) {
           ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>
              <div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Velocity <em style="opacity:.6;font-style:normal">(8w avg)</em></span><span class="tt-v">${velocityPerWeek}/wk</span></div>`
           : "";
+        const baseRow = filters.showBaseline && (baselineByBucket[k] || cumBaseline[i])
+          ? `<div class="tt-row"><span class="tt-k" style="color:${C.goldSoft}">Baseline</span><span class="tt-v">${baselineByBucket[k] || 0}</span></div>
+             <div class="tt-row"><span class="tt-k" style="color:${C.goldSoft}">Cumul. baseline</span><span class="tt-v">${cumBaseline[i]}</span></div>`
+          : "";
         showTooltip(`
           <div class="tt-title"><em>${fmtBucket(k)}</em></div>
           ${rows}
           <div class="tt-row" style="border-top:1px dashed var(--hairline);margin-top:6px;padding-top:4px"><span class="tt-k">Cumul. migrated</span><span class="tt-v">${cumMigrated[i]}</span></div>
           <div class="tt-row"><span class="tt-k">Cumul. plan</span><span class="tt-v">${cumPlanned[i]}</span></div>
+          ${baseRow}
           ${projRow}
           <div class="tt-hint">Click to filter · ${seg.label}</div>
         `, evt);
@@ -2080,6 +2155,9 @@ function renderBurnup(sites) {
   }
   polyline(cumMigrated, "", C.leaf);
   polyline(cumPlanned,  "baseline", C.paper);
+  if (filters.showBaseline && totalBaseline > 0) {
+    polyline(cumBaseline, "baseline-initial");
+  }
 
   // Projection polyline from the "today" bucket onward
   if (todayIdxForProj >= 0 && velocityPerWeek > 0) {
@@ -2129,6 +2207,7 @@ function renderBurnup(sites) {
     <span><span class="swatch" style="background:${C.leaf};height:3px"></span>Cumulative migrated</span>
     <span><span class="swatch" style="background:${C.paper};height:3px;opacity:.6"></span>Cumulative plan</span>
     <span><span class="swatch" style="background:${C.tealSoft};height:3px;opacity:.8"></span>Velocity projection</span>
+    ${filters.showBaseline && totalBaseline > 0 ? `<span><span class="swatch" style="background:${C.goldSoft};height:3px;opacity:.75"></span>Initial baseline</span>` : ""}
   `;
   host.appendChild(lg);
 }
@@ -2288,6 +2367,18 @@ function renderSitesList(sites) {
   // Synthesize a `migrated_on` field used by the Migrated column / sort.
   // Defined as migration_date only when the site has actually migrated.
   filtered.forEach(s => { s.migrated_on = (s.status === "migrated") ? s.migration_date : null; });
+  // Δ baseline days: positive = late vs initial plan, negative = early.
+  // Uses migrated_on for migrated sites, current migration_date otherwise.
+  filtered.forEach(s => {
+    s.delta_baseline_days = null;
+    if (!s.migration_date_baseline) return;
+    const ref = s.migrated_on || s.migration_date;
+    if (!ref) return;
+    const b = new Date(s.migration_date_baseline);
+    const a = new Date(ref);
+    if (isNaN(b) || isNaN(a)) return;
+    s.delta_baseline_days = Math.round((a - b) / 86400000);
+  });
   filtered.sort((a, b) => {
     const va = a[siteSortKey]; const vb = b[siteSortKey];
     if (va === vb) return 0;
@@ -2309,6 +2400,8 @@ function renderSitesList(sites) {
     { k: "risk_level",     label: "Risk" },
     { k: "migrated_on",    label: "Migrated" },     // actual go-live date (only for migrated sites)
     { k: "migration_date", label: "Cutover" },      // planned/scheduled cutover date for all sites
+    { k: "migration_date_baseline", label: "Baseline" },  // initial planned date (Mise en forme)
+    { k: "delta_baseline_days", label: "Δ", numeric: true },  // (actual or planned) − baseline, days
     { k: "added_date",     label: "Added" },
     { k: "t_minus_days",   label: "T−", numeric: true },
     { k: "migration_referent", label: "Referent" },
@@ -2339,6 +2432,8 @@ function renderSitesList(sites) {
       <td>${riskBadge(s)}</td>
       <td class="tcol-num">${s.migrated_on ? fmtDateCutover(s.migrated_on) : '<span style="color:var(--ink-400)">—</span>'}</td>
       <td class="tcol-num">${fmtDateCutover(s.migration_date)}</td>
+      <td class="tcol-num">${s.migration_date_baseline ? fmtDateCutover(s.migration_date_baseline) : '<span style="color:var(--ink-400)">—</span>'}</td>
+      <td class="tcol-num">${fmtDeltaDays(s.delta_baseline_days)}</td>
       <td>${fmtAddedDate(s)}</td>
       <td class="tcol-num">${s.t_minus_days == null ? "—" : (s.t_minus_days < 0 ? "+" + (-s.t_minus_days) + "d" : "T-" + s.t_minus_days)}</td>
       <td><span style="color:var(--text-mid)">${escapeHTML(s.migration_referent || "—")}</span></td>
