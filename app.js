@@ -2026,18 +2026,26 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
-  // Baseline outline bars — initial planned cadence, rendered as a hollow
-  // dashed rect behind the actual bars. Visible only when the toggle is on.
-  if (filters.showBaseline) {
+  // When baseline is shown, split each bucket column into two side-by-side
+  // bars: a baseline bar (gold, what *was* planned) and the actual stack
+  // (what is currently planned / done). This makes "if I had respected the
+  // baseline" directly comparable to "what I have now" week by week.
+  const splitBaseline = filters.showBaseline && totalBaseline > 0;
+  const baselineBarW = splitBaseline ? Math.max(2, Math.floor(barW * 0.42)) : 0;
+  const actualBarW   = splitBaseline ? Math.max(2, barW - baselineBarW - 1) : barW;
+  const baselineX = i => x(i);
+  const actualX   = i => splitBaseline ? x(i) + baselineBarW + 1 : x(i);
+
+  if (splitBaseline) {
     buckets.forEach((k, i) => {
       const v = baselineByBucket[k] || 0;
       if (!v) return;
       const y0 = yBar(v);
       const y1 = yBar(0);
       const r = document.createElementNS(svgNS, "rect");
-      r.setAttribute("x", x(i));
+      r.setAttribute("x", baselineX(i));
       r.setAttribute("y", y0);
-      r.setAttribute("width", barW);
+      r.setAttribute("width", baselineBarW);
       r.setAttribute("height", y1 - y0);
       r.setAttribute("class", "cad-bar-baseline");
       svg.appendChild(r);
@@ -2087,7 +2095,7 @@ function renderBurnup(sites) {
   // Bars — stacked by category (STACK defined above for side-panel reuse)
   buckets.forEach((k, i) => {
     const b = byBucket[k] || EMPTY();
-    const x0 = x(i);
+    const x0 = actualX(i);
     let cum = 0;
     STACK.forEach(seg => {
       const v = b[seg.key] || 0;
@@ -2097,7 +2105,7 @@ function renderBurnup(sites) {
       const bar = document.createElementNS(svgNS, "rect");
       bar.setAttribute("x", x0);
       bar.setAttribute("y", y0);
-      bar.setAttribute("width", barW);
+      bar.setAttribute("width", actualBarW);
       bar.setAttribute("height", y1 - y0);
       bar.setAttribute("fill", seg.color);
       bar.setAttribute("class", "cad-bar");
@@ -2131,11 +2139,12 @@ function renderBurnup(sites) {
       cum += v;
     });
 
-    // X-tick label (every Nth)
+    // X-tick label (every Nth) — center on the whole bucket column,
+    // not on the actual sub-bar (which is offset when baseline is shown).
     const every = unit === "W" ? Math.max(1, Math.round(buckets.length/12)) : 1;
     if (i % every === 0 || i === buckets.length - 1) {
       const tick = document.createElementNS(svgNS, "text");
-      tick.setAttribute("x", x0 + barW/2);
+      tick.setAttribute("x", x(i) + barW/2);
       tick.setAttribute("y", h - margin.bottom + 18);
       tick.setAttribute("text-anchor", "middle");
       tick.setAttribute("class", "cad-axis-tick");

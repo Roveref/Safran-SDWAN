@@ -1584,16 +1584,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 
 .cad-bar-baseline {
-  fill: none;
-  stroke: var(--gold-soft);
-  stroke-width: 1;
-  stroke-dasharray: 2 2;
-  opacity: 0.55;
-}
-.cad-line.baseline-initial {
-  stroke: var(--gold-soft);
-  stroke-dasharray: 5 3;
+  fill: var(--gold-500);
   opacity: 0.75;
+  transition: opacity .2s;
+}
+.cad-bar-baseline:hover { opacity: 1; }
+.cad-line.baseline-initial {
+  stroke: var(--gold-500);
+  stroke-dasharray: 5 3;
+  opacity: 0.85;
   stroke-width: 1.5;
 }
 .cad-axis-label {
