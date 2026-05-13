@@ -1816,13 +1816,18 @@ function renderBurnup(sites) {
   const undatedTotal = undated.migrated + undated.noRisk + undated.postponed + undated.medRisk + undated.highRisk;
 
   // Baseline aggregation — initial planned migration dates (Mise en forme
-  // sheet, columns M+N). Only sites included in the regular byBucket are
-  // counted (i.e. non-closed, non-undated, non-W44-placeholder).
+  // sheet, columns M+N). Sites without a recorded baseline fall back to
+  // their current cutover date, so the cumulative-baseline curve covers
+  // every site in scope (those fallback sites contribute Δ=0 and don't
+  // widen the gap area).
+  function siteBaselineDate(s) {
+    return s.migration_date_baseline || s.migration_date || null;
+  }
   const baselineByBucket = {};
   let baselineMin = null, baselineMax = null;
   sites.forEach(s => {
     if ((s.status_detail || s.status) === "closed") return;
-    const bd = s.migration_date_baseline;
+    const bd = siteBaselineDate(s);
     if (!bd) return;
     const k = bucketKey(bd);
     if (!k) return;
@@ -2398,12 +2403,14 @@ function renderSitesList(sites) {
   filtered.forEach(s => { s.migrated_on = (s.status === "migrated") ? s.migration_date : null; });
   // Δ baseline days: positive = late vs initial plan, negative = early.
   // Uses migrated_on for migrated sites, current migration_date otherwise.
+  // Falls back to migration_date as the baseline when none recorded
+  // (Δ = 0 for those sites — "on baseline" by assumption).
   filtered.forEach(s => {
     s.delta_baseline_days = null;
-    if (!s.migration_date_baseline) return;
-    const ref = s.migrated_on || s.migration_date;
-    if (!ref) return;
-    const b = new Date(s.migration_date_baseline);
+    const base = s.migration_date_baseline || s.migration_date;
+    const ref  = s.migrated_on || s.migration_date;
+    if (!base || !ref) return;
+    const b = new Date(base);
     const a = new Date(ref);
     if (isNaN(b) || isNaN(a)) return;
     s.delta_baseline_days = Math.round((a - b) / 86400000);
@@ -2461,7 +2468,7 @@ function renderSitesList(sites) {
       <td>${riskBadge(s)}</td>
       <td class="tcol-num">${s.migrated_on ? fmtDateCutover(s.migrated_on) : '<span style="color:var(--ink-400)">—</span>'}</td>
       <td class="tcol-num">${fmtDateCutover(s.migration_date)}</td>
-      <td class="tcol-num">${s.migration_date_baseline ? fmtDateCutover(s.migration_date_baseline) : '<span style="color:var(--ink-400)">—</span>'}</td>
+      <td class="tcol-num">${s.migration_date_baseline ? fmtDateCutover(s.migration_date_baseline) : (s.migration_date ? `<span style="opacity:.5;font-style:italic">${fmtDateCutover(s.migration_date)}</span>` : '<span style="color:var(--ink-400)">—</span>')}</td>
       <td class="tcol-num">${fmtDeltaDays(s.delta_baseline_days)}</td>
       <td>${fmtAddedDate(s)}</td>
       <td class="tcol-num">${s.t_minus_days == null ? "—" : (s.t_minus_days < 0 ? "+" + (-s.t_minus_days) + "d" : "T-" + s.t_minus_days)}</td>
