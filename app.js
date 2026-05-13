@@ -2028,17 +2028,13 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
-  const showBaselineOverlay = filters.showBaseline && totalBaseline > 0;
-  const actualBarW = barW;
-  const actualX = i => x(i);
-
   // When baseline is shown, paint the "gap" area between the cumulative
   // baseline curve and what's actually been migrated. Two paths so the
   // sign (ahead vs behind) can be coloured differently:
   //  - Behind (baseline > migrated): amber/gold area = work still owed
   //    relative to the original plan.
   //  - Ahead (migrated > baseline): green area = over-delivery.
-  if (showBaselineOverlay) {
+  if (filters.showBaseline && totalBaseline > 0) {
     const cx = i => x(i) + barW / 2;
     function gapPath(predicate) {
       // Build a piecewise-continuous polygon for buckets matching predicate.
@@ -2119,7 +2115,7 @@ function renderBurnup(sites) {
   // Bars — stacked by category (STACK defined above for side-panel reuse)
   buckets.forEach((k, i) => {
     const b = byBucket[k] || EMPTY();
-    const x0 = actualX(i);
+    const x0 = x(i);
     let cum = 0;
     STACK.forEach(seg => {
       const v = b[seg.key] || 0;
@@ -2129,7 +2125,7 @@ function renderBurnup(sites) {
       const bar = document.createElementNS(svgNS, "rect");
       bar.setAttribute("x", x0);
       bar.setAttribute("y", y0);
-      bar.setAttribute("width", actualBarW);
+      bar.setAttribute("width", barW);
       bar.setAttribute("height", y1 - y0);
       bar.setAttribute("fill", seg.color);
       bar.setAttribute("class", "cad-bar");
