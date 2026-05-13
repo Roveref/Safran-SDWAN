@@ -1928,11 +1928,6 @@ function renderBurnup(sites) {
   }
   host.appendChild(flex);
 
-  // Refresh the "behind / ahead" headline badge in the chart-sub.
-  const chartSub = host.closest(".chart-card")?.querySelector(".chart-sub");
-  if (chartSub) {
-    chartSub.querySelectorAll(".cad-baseline-badge").forEach(n => n.remove());
-  }
 
   // Cumulative
   let cum = 0;
@@ -1940,29 +1935,6 @@ function renderBurnup(sites) {
   cum = 0;
   const cumPlanned = buckets.map(k => cum += (migratedByBucket[k] || 0) + (plannedByBucket[k] || 0));
 
-  // Behind / ahead badge — total cumulative gap at today's bucket
-  // (or at the latest bucket containing actuals when "today" is out of
-  // range). Surfaces the one number that summarises the chart visually.
-  if (filters.showBaseline && totalBaseline > 0 && chartSub) {
-    const todayKeyB = (() => {
-      const t = TODAY.toISOString().slice(0, 10);
-      if (unit === "W") {
-        const d = new Date(t);
-        return `${d.getFullYear()}-W${String(isoWeek(d)).padStart(2, "0")}`;
-      }
-      return t.slice(0, 7);
-    })();
-    let anchor = buckets.indexOf(todayKeyB);
-    if (anchor < 0) anchor = buckets.length - 1;
-    const gap = cumMigrated[anchor] - cumBaseline[anchor];
-    if (gap !== 0 && cumBaseline[anchor] > 0) {
-      const behind = gap < 0;
-      const badge = document.createElement("span");
-      badge.className = "cad-baseline-badge " + (behind ? "behind" : "ahead");
-      badge.innerHTML = `${behind ? "Behind baseline" : "Ahead of baseline"} <span class="v">${behind ? "−" : "+"}${Math.abs(gap)}</span>`;
-      chartSub.appendChild(badge);
-    }
-  }
 
   // Velocity projection — computed per bucket, starting from today
   const narr_tmp = DATA.narrative || {};
