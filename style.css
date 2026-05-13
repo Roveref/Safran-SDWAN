@@ -1481,10 +1481,95 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 #cadence-burnup {
   position: relative;
   width: 100%;
+  text-align: center;
+}
+.cadence-flex {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+  width: 100%;
+}
+.cadence-chart-col {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   text-align: center;
 }
 .cadence-svg { display: inline-block; max-width: 100%; }
+.cadence-toplan {
+  flex: 0 0 170px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 12px;
+  border-left: 1px solid var(--hairline);
+  background: linear-gradient(180deg, rgba(255,255,255,0.012), transparent);
+  text-align: left;
+}
+.cadence-toplan .ctp-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 6px;
+}
+.cadence-toplan .ctp-count {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 1;
+  color: var(--paper);
+  font-weight: 400;
+}
+.cadence-toplan .ctp-sub {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-300);
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+.cadence-toplan .ctp-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--hairline);
+  margin-bottom: 14px;
+}
+.cadence-toplan .ctp-bar .ctp-seg { display: block; height: 100%; }
+.cadence-toplan .ctp-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  color: var(--ink-200);
+}
+.cadence-toplan .ctp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.cadence-toplan .ctp-row-k {
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+  color: var(--ink-300);
+}
+.cadence-toplan .ctp-row-k em {
+  font-style: normal;
+  color: var(--ink-200);
+  letter-spacing: 0.4px;
+  text-transform: none;
+}
+.cadence-toplan .ctp-row-v {
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
 .cad-axis-label {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -3123,7 +3208,6 @@ body.upload-modal-open { overflow: hidden; }
   .upload-actions { flex-wrap: wrap; }
   .upload-foot-note { width: 100%; }
 }
-
 /* Advanced options inside the upload modal (collapsed by default) */
 .upload-advanced {
   margin-bottom: 22px;
@@ -3198,7 +3282,6 @@ body.upload-modal-open { overflow: hidden; }
   text-transform: uppercase;
   color: var(--ink-400);
 }
-
 /* Per-row clear button (appears when a file is staged) */
 .upload-clear-btn {
   background: transparent;

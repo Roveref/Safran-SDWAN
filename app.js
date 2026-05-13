@@ -1741,19 +1741,60 @@ function renderBurnup(sites) {
     return "noRisk";
   }
   const EMPTY = () => ({ migrated: 0, noRisk: 0, postponed: 0, medRisk: 0, highRisk: 0 });
-  const byBucket = {};
-  let minBucket = null, maxBucket = null;
-  const undated = EMPTY();
+
+  // ---- Identify "to plan" sites (undated + W44 placeholder cluster) ----
+  // PMO convention: sites awaiting validation are parked at end-of-October
+  // (ISO W44) of the planning year. We detect such buckets dynamically: a
+  // W44 bucket dominated by "To validate" sites is treated as placeholder
+  // and excluded from the timeline.
+  const bucketSitesPre = {};
+  const undatedSites = [];
   sites.forEach(s => {
     if ((s.status_detail || s.status) === "closed") return;
     const md = s.migration_date;
-    if (!md) { undated[siteCat(s)] += 1; return; }
+    if (!md) { undatedSites.push(s); return; }
     const k = bucketKey(md);
-    byBucket[k] = byBucket[k] || EMPTY();
-    byBucket[k][siteCat(s)] += 1;
+    (bucketSitesPre[k] = bucketSitesPre[k] || []).push(s);
+  });
+  function isToValidate(s) {
+    return /^to validate/i.test(s.status_raw || "");
+  }
+  const placeholderKeys = new Set();
+  Object.entries(bucketSitesPre).forEach(([k, list]) => {
+    const isW44 = unit === "W" ? k.endsWith("-W44") : false;
+    if (!isW44 || list.length < 5) return;
+    const tv = list.filter(isToValidate).length;
+    if (tv / list.length >= 0.8) placeholderKeys.add(k);
+  });
+  // In month mode, treat any month whose sites are >=60% To validate AND
+  // count >= 10 as a placeholder too (M='2026-10' aggregates the W44 spike).
+  if (unit === "M") {
+    Object.entries(bucketSitesPre).forEach(([k, list]) => {
+      if (list.length < 10) return;
+      const tv = list.filter(isToValidate).length;
+      if (tv / list.length >= 0.6) placeholderKeys.add(k);
+    });
+  }
+  const toPlanSites = [
+    ...undatedSites,
+    ...[...placeholderKeys].flatMap(k => bucketSitesPre[k]),
+  ];
+
+  // Build the regular byBucket excluding placeholder buckets
+  const byBucket = {};
+  let minBucket = null, maxBucket = null;
+  Object.entries(bucketSitesPre).forEach(([k, list]) => {
+    if (placeholderKeys.has(k)) return;
+    const agg = EMPTY();
+    list.forEach(s => { agg[siteCat(s)] += 1; });
+    byBucket[k] = agg;
     if (minBucket === null || k < minBucket) minBucket = k;
     if (maxBucket === null || k > maxBucket) maxBucket = k;
   });
+  // Undated counters (preserved for cumulative line — sites still count
+  // toward the total scope even if their date is unknown).
+  const undated = EMPTY();
+  undatedSites.forEach(s => { undated[siteCat(s)] += 1; });
   const undatedTotal = undated.migrated + undated.noRisk + undated.postponed + undated.medRisk + undated.highRisk;
   // Derived simple counts for line computations
   const migratedByBucket = {}, plannedByBucket = {};
@@ -1787,18 +1828,61 @@ function renderBurnup(sites) {
     return out;
   }
   const buckets = bucketRange(minBucket, maxBucket);
-  // Append a synthetic "Undated" bucket so sites without migration_date still count toward cumulative
-  if (undatedTotal > 0) {
-    const UKEY = "UNDATED";
-    byBucket[UKEY] = undated;
-    migratedByBucket[UKEY] = undated.migrated;
-    plannedByBucket[UKEY] = undated.noRisk + undated.postponed + undated.medRisk + undated.highRisk;
-    buckets.push(UKEY);
-  }
-  if (!buckets.length) {
+  // Undated + placeholder sites are handled by the "À planifier" side panel,
+  // not as buckets — so the timeline shows real cadence only.
+  if (!buckets.length && !toPlanSites.length) {
     host.innerHTML = `<div style="padding:40px;color:var(--ink-300);text-align:center;font-family:var(--font-serif);font-style:italic;">No dated migrations in filter.</div>`;
     return;
   }
+
+  // Stack categories (hoisted so the side panel can reuse colors/labels)
+  const STACK = [
+    { key: "migrated",  color: C.leaf,   label: "Migrated"    },
+    { key: "noRisk",    color: C.ink200, label: "No risk"     },
+    { key: "postponed", color: "#A78BFA",label: "Postponed"   },
+    { key: "medRisk",   color: "#F59E0B",label: "Medium risk" },
+    { key: "highRisk",  color: "#D64545",label: "High risk"   },
+  ];
+
+  // Build the "À planifier" side panel
+  function buildToPlanPanel() {
+    const panel = document.createElement("aside");
+    panel.className = "cadence-toplan";
+    const total = toPlanSites.length;
+    const placeholderCount = [...placeholderKeys]
+      .reduce((sum, k) => sum + ((bucketSitesPre[k] || []).length), 0);
+    const undCount = undatedSites.length;
+    const cat = EMPTY();
+    toPlanSites.forEach(s => { cat[siteCat(s)] += 1; });
+    const barSegs = STACK.map(seg => {
+      const v = cat[seg.key]; if (!v) return "";
+      const pct = (v / total) * 100;
+      return `<span class="ctp-seg" style="background:${seg.color};width:${pct}%" title="${seg.label}: ${v}"></span>`;
+    }).join("");
+    const placeholderLabels = [...placeholderKeys].map(fmtBucket).join(", ");
+    panel.innerHTML = `
+      <div class="ctp-kicker">À planifier</div>
+      <div class="ctp-count">${total}</div>
+      <div class="ctp-sub">site${total > 1 ? "s" : ""} sans date ferme</div>
+      <div class="ctp-bar">${barSegs}</div>
+      <div class="ctp-rows">
+        ${placeholderCount > 0 ? `<div class="ctp-row"><span class="ctp-row-k">W44 placeholder${placeholderLabels ? ` <em>(${placeholderLabels})</em>` : ""}</span><span class="ctp-row-v">${placeholderCount}</span></div>` : ""}
+        ${undCount > 0 ? `<div class="ctp-row"><span class="ctp-row-k">Undated</span><span class="ctp-row-v">${undCount}</span></div>` : ""}
+      </div>
+    `;
+    return panel;
+  }
+
+  // ---- Layout wrapper: chart on the left, "to plan" panel on the right ----
+  const flex = document.createElement("div");
+  flex.className = "cadence-flex";
+  const chartCol = document.createElement("div");
+  chartCol.className = "cadence-chart-col";
+  flex.appendChild(chartCol);
+  if (toPlanSites.length > 0) {
+    flex.appendChild(buildToPlanPanel());
+  }
+  host.appendChild(flex);
 
   // Cumulative
   let cum = 0;
@@ -1833,7 +1917,7 @@ function renderBurnup(sites) {
   const margin = { top: 24, right: 60, bottom: 36, left: 44 };
   const gap = 4;
   const desiredBarW = unit === "W" ? 14 : 46;
-  const containerW = host.clientWidth || 1000;
+  const containerW = chartCol.clientWidth || host.clientWidth || 1000;
   const desiredTotalW = margin.left + margin.right + buckets.length * (desiredBarW + gap);
   let barW, w;
   if (desiredTotalW < containerW) {
@@ -1895,16 +1979,7 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
-  // Stack definitions — bottom → top, colors match map + donut
-  const STACK = [
-    { key: "migrated",  color: C.leaf,   label: "Migrated"    },
-    { key: "noRisk",    color: C.ink200, label: "No risk"     },
-    { key: "postponed", color: "#A78BFA",label: "Postponed"   },
-    { key: "medRisk",   color: "#F59E0B",label: "Medium risk" },
-    { key: "highRisk",  color: "#D64545",label: "High risk"   },
-  ];
-
-  // Bars — stacked by category
+  // Bars — stacked by category (STACK defined above for side-panel reuse)
   buckets.forEach((k, i) => {
     const b = byBucket[k] || EMPTY();
     const x0 = x(i);
@@ -2005,7 +2080,7 @@ function renderBurnup(sites) {
     svg.appendChild(lab);
   }
 
-  host.appendChild(svg);
+  chartCol.appendChild(svg);
 
   // Legend
   const lg = el("div", "chart-legend");
