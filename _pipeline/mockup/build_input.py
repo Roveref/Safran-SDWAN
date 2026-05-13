@@ -269,6 +269,10 @@ def load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log):
     sites = {}
     by_canon = {}
 
+    # Build a canonical-key view of SITE_ID_EXCLUDE so user-supplied
+    # runtime exclusions match regardless of casing/whitespace.
+    exclude_ck = {canon_key(s) for s in SITE_ID_EXCLUDE if s}
+
     def try_add(site_raw, company_raw, mig, source_label, row_idx, extras=None):
         if site_raw is None or site_raw == "":
             return
@@ -276,10 +280,10 @@ def load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log):
         if not site or site.upper() in SITE_ID_JUNK_EXACT:
             invalid_log.append((source_label, row_idx, str(site_raw).strip()))
             return
-        if site in SITE_ID_EXCLUDE:
+        ck = canon_key(site)
+        if site in SITE_ID_EXCLUDE or ck in exclude_ck:
             excluded_log.append((source_label, row_idx, site))
             return
-        ck = canon_key(site)
         company = str(company_raw).strip() if company_raw else None
         if ck in by_canon:
             existing = by_canon[ck]
@@ -1092,6 +1096,12 @@ def main():
     invalid_log = []
     excluded_log = []
     sites, by_canon = load_canonical_sites(wb_i, dupes_log, invalid_log, excluded_log)
+    if excluded_log:
+        unique_excluded = sorted({site for _src, _row, site in excluded_log})
+        print(f"  ✂ excluded {len(unique_excluded)} site(s): {', '.join(unique_excluded)}")
+    elif SITE_ID_EXCLUDE:
+        print(f"  ⚠ SITE_ID_EXCLUDE has {len(SITE_ID_EXCLUDE)} entries but none matched any "
+              f"BATCH/PILOTS row — check exact site_id spelling")
     resolve = make_resolver(by_canon, orphans_log)
 
     # Enrich
