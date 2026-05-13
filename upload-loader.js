@@ -479,13 +479,16 @@ await micropip.install("openpyxl")
     }
   }
 
+  // Always revalidate with the server (sends If-None-Match). Vercel
+  // returns 304 when the asset hasn't changed, so this is cheap, but
+  // it guarantees a fresh pipeline whenever GitHub pushes a new build.
   async function fetchText(url) {
-    const r = await fetch(url, { cache: "force-cache" });
+    const r = await fetch(url, { cache: "no-cache" });
     if (!r.ok) throw new Error(`${url} → ${r.status}`);
     return r.text();
   }
   async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "force-cache" });
+    const r = await fetch(url, { cache: "no-cache" });
     if (!r.ok) throw new Error(`${url} → ${r.status}`);
     return r.json();
   }
