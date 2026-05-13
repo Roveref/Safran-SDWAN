@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SD-WAN Safran — Executive Briefing</title>
-<link rel="stylesheet" href="style.css?v=v3-pub-3"><!-- css unchanged -->
+<link rel="stylesheet" href="style.css?v=v3-10">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
 <body>
@@ -455,8 +455,17 @@
   try {
     const _raw = localStorage.getItem("SDWAN_DATA_UPLOADED");
     if (_raw) {
-      window.SDWAN_DATA = JSON.parse(_raw);
-      window.SDWAN_DATA_SOURCE = "upload";
+      const _stored = JSON.parse(_raw);
+      const _shippedVer = (window.SDWAN_DATA && window.SDWAN_DATA.pipeline_version) || 0;
+      const _storedVer = _stored.pipeline_version || 0;
+      if (_storedVer < _shippedVer) {
+        console.info("[upload] stored payload (pipeline v" + _storedVer +
+          ") is older than shipped (v" + _shippedVer + ") — discarding.");
+        localStorage.removeItem("SDWAN_DATA_UPLOADED");
+      } else {
+        window.SDWAN_DATA = _stored;
+        window.SDWAN_DATA_SOURCE = "upload";
+      }
     }
   } catch (e) {
     console.warn("[upload] localStorage payload could not be parsed; using shipped data.", e);
@@ -464,6 +473,6 @@
   }
 </script>
 <script src="app.js?v=v3-6"></script>
-<script src="upload-loader.js?v=v3-pub-4"></script>
+<script src="upload-loader.js?v=v3-5"></script>
 </body>
 </html>

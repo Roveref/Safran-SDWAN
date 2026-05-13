@@ -277,6 +277,10 @@ def main():
         "narrative": narrative,
         "snapshots": snapshots,
         "v2_build": datetime.now().isoformat(timespec="seconds"),
+        # Bump whenever the build pipeline changes in a way that makes older
+        # uploaded payloads incompatible. Read by index.html to invalidate
+        # stale localStorage payloads.
+        "pipeline_version": 2,
     }
 
     # Write minified for fast load
