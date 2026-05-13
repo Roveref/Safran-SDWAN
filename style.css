@@ -1583,17 +1583,53 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   margin-bottom: 4px;
 }
 
-.cad-bar-baseline {
-  fill: var(--gold-500);
-  opacity: 0.75;
-  transition: opacity .2s;
+.cad-gap {
+  pointer-events: none;
+  stroke: none;
 }
-.cad-bar-baseline:hover { opacity: 1; }
+.cad-gap.behind {
+  fill: var(--gold-500);
+  opacity: 0.18;
+}
+.cad-gap.ahead {
+  fill: #56B181;
+  opacity: 0.22;
+}
 .cad-line.baseline-initial {
   stroke: var(--gold-500);
-  stroke-dasharray: 5 3;
-  opacity: 0.85;
-  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.9;
+  stroke-width: 1.6;
+}
+
+.cad-baseline-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  border: 1px solid var(--hairline);
+}
+.cad-baseline-badge.behind {
+  background: rgba(217,183,101,0.08);
+  border-color: rgba(217,183,101,0.45);
+  color: var(--gold-500);
+}
+.cad-baseline-badge.ahead {
+  background: rgba(86,177,129,0.08);
+  border-color: rgba(86,177,129,0.45);
+  color: #7BCB9F;
+}
+.cad-baseline-badge .v {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  letter-spacing: 0;
+  font-weight: 500;
 }
 .cad-axis-label {
   font-family: var(--font-mono);

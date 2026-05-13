@@ -1928,11 +1928,41 @@ function renderBurnup(sites) {
   }
   host.appendChild(flex);
 
+  // Refresh the "behind / ahead" headline badge in the chart-sub.
+  const chartSub = host.closest(".chart-card")?.querySelector(".chart-sub");
+  if (chartSub) {
+    chartSub.querySelectorAll(".cad-baseline-badge").forEach(n => n.remove());
+  }
+
   // Cumulative
   let cum = 0;
   const cumMigrated = buckets.map(k => cum += (migratedByBucket[k] || 0));
   cum = 0;
   const cumPlanned = buckets.map(k => cum += (migratedByBucket[k] || 0) + (plannedByBucket[k] || 0));
+
+  // Behind / ahead badge — total cumulative gap at today's bucket
+  // (or at the latest bucket containing actuals when "today" is out of
+  // range). Surfaces the one number that summarises the chart visually.
+  if (filters.showBaseline && totalBaseline > 0 && chartSub) {
+    const todayKeyB = (() => {
+      const t = TODAY.toISOString().slice(0, 10);
+      if (unit === "W") {
+        const d = new Date(t);
+        return `${d.getFullYear()}-W${String(isoWeek(d)).padStart(2, "0")}`;
+      }
+      return t.slice(0, 7);
+    })();
+    let anchor = buckets.indexOf(todayKeyB);
+    if (anchor < 0) anchor = buckets.length - 1;
+    const gap = cumMigrated[anchor] - cumBaseline[anchor];
+    if (gap !== 0 && cumBaseline[anchor] > 0) {
+      const behind = gap < 0;
+      const badge = document.createElement("span");
+      badge.className = "cad-baseline-badge " + (behind ? "behind" : "ahead");
+      badge.innerHTML = `${behind ? "Behind baseline" : "Ahead of baseline"} <span class="v">${behind ? "−" : "+"}${Math.abs(gap)}</span>`;
+      chartSub.appendChild(badge);
+    }
+  }
 
   // Velocity projection — computed per bucket, starting from today
   const narr_tmp = DATA.narrative || {};
@@ -2026,30 +2056,52 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
-  // When baseline is shown, split each bucket column into two side-by-side
-  // bars: a baseline bar (gold, what *was* planned) and the actual stack
-  // (what is currently planned / done). This makes "if I had respected the
-  // baseline" directly comparable to "what I have now" week by week.
-  const splitBaseline = filters.showBaseline && totalBaseline > 0;
-  const baselineBarW = splitBaseline ? Math.max(2, Math.floor(barW * 0.42)) : 0;
-  const actualBarW   = splitBaseline ? Math.max(2, barW - baselineBarW - 1) : barW;
-  const baselineX = i => x(i);
-  const actualX   = i => splitBaseline ? x(i) + baselineBarW + 1 : x(i);
+  const showBaselineOverlay = filters.showBaseline && totalBaseline > 0;
+  const actualBarW = barW;
+  const actualX = i => x(i);
 
-  if (splitBaseline) {
-    buckets.forEach((k, i) => {
-      const v = baselineByBucket[k] || 0;
-      if (!v) return;
-      const y0 = yBar(v);
-      const y1 = yBar(0);
-      const r = document.createElementNS(svgNS, "rect");
-      r.setAttribute("x", baselineX(i));
-      r.setAttribute("y", y0);
-      r.setAttribute("width", baselineBarW);
-      r.setAttribute("height", y1 - y0);
-      r.setAttribute("class", "cad-bar-baseline");
-      svg.appendChild(r);
-    });
+  // When baseline is shown, paint the "gap" area between the cumulative
+  // baseline curve and what's actually been migrated. Two paths so the
+  // sign (ahead vs behind) can be coloured differently:
+  //  - Behind (baseline > migrated): amber/gold area = work still owed
+  //    relative to the original plan.
+  //  - Ahead (migrated > baseline): green area = over-delivery.
+  if (showBaselineOverlay) {
+    const cx = i => x(i) + barW / 2;
+    function gapPath(predicate) {
+      // Build a piecewise-continuous polygon for buckets matching predicate.
+      // Each contiguous run becomes a closed subpath:
+      //   baseline → migrated → close (left edge baseline, right edge migrated).
+      const segs = [];
+      let run = [];
+      const flush = () => {
+        if (run.length < 2) { run = []; return; }
+        const top = run.map(i => `${cx(i)},${yCum(cumBaseline[i])}`).join(" L ");
+        const bot = [...run].reverse().map(i => `${cx(i)},${yCum(cumMigrated[i])}`).join(" L ");
+        segs.push(`M ${top} L ${bot} Z`);
+        run = [];
+      };
+      for (let i = 0; i < buckets.length; i++) {
+        if (predicate(i)) run.push(i);
+        else flush();
+      }
+      flush();
+      return segs.join(" ");
+    }
+    const behindD = gapPath(i => cumBaseline[i] > cumMigrated[i]);
+    const aheadD  = gapPath(i => cumMigrated[i] > cumBaseline[i]);
+    if (behindD) {
+      const p = document.createElementNS(svgNS, "path");
+      p.setAttribute("d", behindD);
+      p.setAttribute("class", "cad-gap behind");
+      svg.appendChild(p);
+    }
+    if (aheadD) {
+      const p = document.createElementNS(svgNS, "path");
+      p.setAttribute("d", aheadD);
+      p.setAttribute("class", "cad-gap ahead");
+      svg.appendChild(p);
+    }
   }
 
   // Hover hit zones — one transparent column per bucket, drawn BEFORE the
