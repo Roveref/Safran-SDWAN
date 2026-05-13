@@ -1818,15 +1818,19 @@ function renderBurnup(sites) {
   // Baseline aggregation — initial planned migration dates (Mise en forme
   // sheet, columns M+N). Sites without a recorded baseline fall back to
   // their current cutover date, so the cumulative-baseline curve covers
-  // every site in scope (those fallback sites contribute Δ=0 and don't
-  // widen the gap area).
+  // every site in real scope (those fallback sites contribute Δ=0).
+  // Sites in the "à planifier" pool (undated + W44 placeholders) are
+  // excluded — symmetrical with the actual cadence bars + cumulative
+  // lines, which also exclude them.
   function siteBaselineDate(s) {
     return s.migration_date_baseline || s.migration_date || null;
   }
+  const toPlanIds = new Set(toPlanSites.map(s => s.site_id));
   const baselineByBucket = {};
   let baselineMin = null, baselineMax = null;
   sites.forEach(s => {
     if ((s.status_detail || s.status) === "closed") return;
+    if (toPlanIds.has(s.site_id)) return;
     const bd = siteBaselineDate(s);
     if (!bd) return;
     const k = bucketKey(bd);
