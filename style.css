@@ -1495,7 +1495,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   overflow-x: auto;
   text-align: center;
 }
-.cadence-svg { display: inline-block; max-width: 100%; }
+.cadence-svg { display: inline-block; }
 .cadence-toplan {
   flex: 0 0 170px;
   display: flex;
@@ -1556,15 +1556,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   gap: 8px;
 }
 .cadence-toplan .ctp-row-k {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   text-transform: uppercase;
   letter-spacing: 1.3px;
   color: var(--ink-300);
 }
-.cadence-toplan .ctp-row-k em {
-  font-style: normal;
-  color: var(--ink-200);
-  letter-spacing: 0.4px;
-  text-transform: none;
+.cadence-toplan .ctp-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 8px;
 }
 .cadence-toplan .ctp-row-v {
   color: var(--paper);

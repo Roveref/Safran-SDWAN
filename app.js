@@ -1849,9 +1849,6 @@ function renderBurnup(sites) {
     const panel = document.createElement("aside");
     panel.className = "cadence-toplan";
     const total = toPlanSites.length;
-    const placeholderCount = [...placeholderKeys]
-      .reduce((sum, k) => sum + ((bucketSitesPre[k] || []).length), 0);
-    const undCount = undatedSites.length;
     const cat = EMPTY();
     toPlanSites.forEach(s => { cat[siteCat(s)] += 1; });
     const barSegs = STACK.map(seg => {
@@ -1859,16 +1856,18 @@ function renderBurnup(sites) {
       const pct = (v / total) * 100;
       return `<span class="ctp-seg" style="background:${seg.color};width:${pct}%" title="${seg.label}: ${v}"></span>`;
     }).join("");
-    const placeholderLabels = [...placeholderKeys].map(fmtBucket).join(", ");
+    const rows = STACK.filter(seg => cat[seg.key] > 0).map(seg => `
+      <div class="ctp-row">
+        <span class="ctp-row-k"><span class="ctp-dot" style="background:${seg.color}"></span>${seg.label}</span>
+        <span class="ctp-row-v">${cat[seg.key]}</span>
+      </div>
+    `).join("");
     panel.innerHTML = `
       <div class="ctp-kicker">À planifier</div>
       <div class="ctp-count">${total}</div>
       <div class="ctp-sub">site${total > 1 ? "s" : ""} sans date ferme</div>
       <div class="ctp-bar">${barSegs}</div>
-      <div class="ctp-rows">
-        ${placeholderCount > 0 ? `<div class="ctp-row"><span class="ctp-row-k">W44 placeholder${placeholderLabels ? ` <em>(${placeholderLabels})</em>` : ""}</span><span class="ctp-row-v">${placeholderCount}</span></div>` : ""}
-        ${undCount > 0 ? `<div class="ctp-row"><span class="ctp-row-k">Undated</span><span class="ctp-row-v">${undCount}</span></div>` : ""}
-      </div>
+      <div class="ctp-rows">${rows}</div>
     `;
     return panel;
   }
@@ -1903,9 +1902,11 @@ function renderBurnup(sites) {
     return t.slice(0, 7);
   })();
   const todayIdxForProj = buckets.indexOf(todayKeyForProj);
+  // Total scope = authoritative count from narrative (includes to-plan +
+  // undated). The right-hand cumulative axis must always go up to this
+  // value so the gap to cumulative-plan visualises remaining work.
   const totalScope = (narr_tmp.total != null) ? narr_tmp.total : cumPlanned[cumPlanned.length - 1] || 0;
   const projected = buckets.map((k, i) => {
-    if (k === "UNDATED") return null;  // synthetic bucket, no projection
     if (todayIdxForProj < 0 || velocityPerWeek <= 0) return null;
     if (i < todayIdxForProj) return cumMigrated[i];  // actuals for past
     const base = cumMigrated[todayIdxForProj];
@@ -1920,15 +1921,14 @@ function renderBurnup(sites) {
   const containerW = chartCol.clientWidth || host.clientWidth || 1000;
   const desiredTotalW = margin.left + margin.right + buckets.length * (desiredBarW + gap);
   let barW, w;
+  const avail = containerW - margin.left - margin.right - buckets.length * gap;
   if (desiredTotalW < containerW) {
-    w = containerW;
-    const avail = containerW - margin.left - margin.right - buckets.length * gap;
     barW = Math.min(80, Math.max(desiredBarW, Math.floor(avail / buckets.length)));
-    w = margin.left + margin.right + buckets.length * (barW + gap);
   } else {
-    barW = desiredBarW;
-    w = desiredTotalW;
+    // Squeeze bars so the whole chart fits the chartCol width (no overflow).
+    barW = Math.max(2, Math.floor(avail / buckets.length));
   }
+  w = margin.left + margin.right + buckets.length * (barW + gap);
   const h = 340;
   const plotW = w - margin.left - margin.right;
   const plotH = h - margin.top - margin.bottom;
@@ -1940,7 +1940,7 @@ function renderBurnup(sites) {
     }),
     1
   );
-  const maxCum = Math.max(...cumPlanned, 1);
+  const maxCum = Math.max(...cumPlanned, totalScope, 1);
 
   const x = i => margin.left + i * (barW + 4);
   const yBar = v => margin.top + plotH - (v / maxBar) * plotH;
