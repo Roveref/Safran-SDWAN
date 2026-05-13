@@ -1979,6 +1979,40 @@ function renderBurnup(sites) {
     svg.appendChild(label);
   }
 
+  // Hover hit zones — one transparent column per bucket, drawn BEFORE the
+  // bars so bars stay on top for segment-specific tooltips. The hit zone
+  // catches hovers above the bar (on the cumulative lines, projection,
+  // empty space) and shows a bucket-level tooltip.
+  buckets.forEach((k, i) => {
+    const b = byBucket[k] || EMPTY();
+    const hz = document.createElementNS(svgNS, "rect");
+    hz.setAttribute("x", x(i) - gap / 2);
+    hz.setAttribute("y", margin.top);
+    hz.setAttribute("width", barW + gap);
+    hz.setAttribute("height", plotH);
+    hz.setAttribute("fill", "transparent");
+    hz.setAttribute("pointer-events", "all");
+    hz.addEventListener("mouseenter", evt => {
+      const rows = STACK.filter(s => (b[s.key] || 0) > 0)
+        .map(s => `<div class="tt-row"><span class="tt-k" style="color:${s.color}">${s.label}</span><span class="tt-v">${b[s.key]}</span></div>`)
+        .join("");
+      const projRow = projected[i] != null
+        ? `<div class="tt-row"><span class="tt-k" style="color:${C.tealSoft}">Projected</span><span class="tt-v">${Math.round(projected[i])}</span></div>`
+        : "";
+      const bodyRows = rows || `<div class="tt-row" style="color:var(--ink-300);font-style:italic">No migrations this bucket</div>`;
+      showTooltip(`
+        <div class="tt-title"><em>${fmtBucket(k)}</em></div>
+        ${bodyRows}
+        <div class="tt-row" style="border-top:1px dashed var(--hairline);margin-top:6px;padding-top:4px"><span class="tt-k">Cumul. migrated</span><span class="tt-v">${cumMigrated[i]}</span></div>
+        <div class="tt-row"><span class="tt-k">Cumul. plan</span><span class="tt-v">${cumPlanned[i]}</span></div>
+        ${projRow}
+      `, evt);
+    });
+    hz.addEventListener("mousemove", positionTooltip);
+    hz.addEventListener("mouseleave", hideTooltip);
+    svg.appendChild(hz);
+  });
+
   // Bars — stacked by category (STACK defined above for side-panel reuse)
   buckets.forEach((k, i) => {
     const b = byBucket[k] || EMPTY();
